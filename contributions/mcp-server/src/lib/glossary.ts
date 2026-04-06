@@ -49,7 +49,11 @@ for (const t of allTerms) {
 
 export function getTerm(idOrAlias: string): GlossaryTerm | undefined {
   const lower = idOrAlias.toLowerCase();
-  return termMap.get(lower) || termMap.get(idOrAlias) || (aliasMap.has(lower) ? termMap.get(aliasMap.get(lower)!) : undefined);
+  return (
+    termMap.get(lower) ||
+    termMap.get(idOrAlias) ||
+    (aliasMap.has(lower) ? termMap.get(aliasMap.get(lower)!) : undefined)
+  );
 }
 
 export function searchTerms(query: string): GlossaryTerm[] {
@@ -59,7 +63,7 @@ export function searchTerms(query: string): GlossaryTerm[] {
       t.term.toLowerCase().includes(q) ||
       t.id.includes(q) ||
       t.definition.toLowerCase().includes(q) ||
-      t.aliases?.some((a) => a.toLowerCase().includes(q))
+      t.aliases?.some((a) => a.toLowerCase().includes(q)),
   );
 }
 
@@ -71,7 +75,10 @@ export function getCategories(): Category[] {
   return CATEGORIES;
 }
 
-export function localizeTerm(term: GlossaryTerm, locale?: string): GlossaryTerm {
+export function localizeTerm(
+  term: GlossaryTerm,
+  locale?: string,
+): GlossaryTerm {
   if (!locale || locale === "en") return term;
   const localeData = translations[locale];
   if (!localeData) return term;
@@ -82,7 +89,7 @@ export function localizeTerm(term: GlossaryTerm, locale?: string): GlossaryTerm 
 
 export function getRelatedTermsBFS(
   termId: string,
-  depth: number = 1
+  depth: number = 1,
 ): GlossaryTerm[] {
   const visited = new Set<string>();
   const queue: { id: string; level: number }[] = [{ id: termId, level: 0 }];

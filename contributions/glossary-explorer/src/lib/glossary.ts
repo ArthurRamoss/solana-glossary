@@ -59,12 +59,91 @@ export function searchTerms(query: string): GlossaryTerm[] {
       t.term.toLowerCase().includes(q) ||
       t.id.includes(q) ||
       t.definition.toLowerCase().includes(q) ||
-      t.aliases?.some((a) => a.toLowerCase().includes(q))
+      t.aliases?.some((a) => a.toLowerCase().includes(q)),
   );
 }
 
 export function getTermsByCategory(category: Category): GlossaryTerm[] {
   return allTerms.filter((t) => t.category === category);
+}
+
+export function getRelatedTermsBFS(
+  idOrAlias: string,
+  depth = 1,
+): GlossaryTerm[] {
+  const start = getTerm(idOrAlias);
+  if (!start || depth < 1) return [];
+
+  const maxDepth = Math.min(Math.max(depth, 1), 3);
+  const visited = new Set<string>([start.id]);
+  const queue: Array<{ id: string; depth: number }> = [
+    { id: start.id, depth: 0 },
+  ];
+  const related: GlossaryTerm[] = [];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) break;
+
+    const term = getTerm(current.id);
+    if (!term || current.depth >= maxDepth) continue;
+
+    for (const relatedId of term.related ?? []) {
+      if (visited.has(relatedId)) continue;
+      visited.add(relatedId);
+
+      const relatedTerm = getTerm(relatedId);
+      if (!relatedTerm) continue;
+
+      related.push(relatedTerm);
+      queue.push({ id: relatedId, depth: current.depth + 1 });
+    }
+  }
+
+  return related;
+}
+
+export interface GlossaryStats {
+  totalTerms: number;
+  totalCategories: number;
+  totalEdges: number;
+  termsWithRelated: number;
+  termsWithAliases: number;
+  availableLocales: string[];
+  byCategory: Array<{
+    category: Category;
+    count: number;
+  }>;
+}
+
+export function getGlossaryStats(): GlossaryStats {
+  let totalEdges = 0;
+  let termsWithRelated = 0;
+  let termsWithAliases = 0;
+
+  for (const term of allTerms) {
+    if (term.related?.length) {
+      totalEdges += term.related.length;
+      termsWithRelated += 1;
+    }
+
+    if (term.aliases?.length) {
+      termsWithAliases += 1;
+    }
+  }
+
+  return {
+    totalTerms: allTerms.length,
+    totalCategories: CATEGORIES.length,
+    totalEdges,
+    termsWithRelated,
+    termsWithAliases,
+    availableLocales: ["en", "pt", "es"],
+    byCategory: CATEGORIES.map((category) => ({
+      category,
+      count: getTermsByCategory(category).length,
+    })).sort((a, b) => b.count - a.count),
+  };
 }
 
 const CATEGORIES: Category[] = [

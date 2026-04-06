@@ -8,15 +8,19 @@ interface Props {
 }
 
 export async function generateStaticParams() {
-  return allTerms.map((t) => ({ id: t.id }));
+  return allTerms.map((term) => ({ id: term.id }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const term = getTerm(id);
-  if (!term) return { title: "Term Not Found" };
+
+  if (!term) {
+    return { title: "Term Not Found" };
+  }
+
   return {
-    title: `${term.term} — Solana Glossary`,
+    title: `${term.term} - Solana Glossary`,
     description: term.definition.slice(0, 160),
   };
 }
@@ -24,14 +28,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function TermPage({ params }: Props) {
   const { id } = await params;
   const term = getTerm(id);
-  if (!term) notFound();
+
+  if (!term) {
+    notFound();
+  }
 
   const relatedTerms = (term.related ?? [])
-    .map((rid) => getTerm(rid))
+    .map((relatedId) => getTerm(relatedId))
     .filter(Boolean) as NonNullable<ReturnType<typeof getTerm>>[];
 
   return (
-    <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-12">
+    <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
       <TermDetail term={term} relatedTerms={relatedTerms} />
     </div>
   );

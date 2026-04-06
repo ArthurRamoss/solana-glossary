@@ -14,6 +14,10 @@ export type Category =
   | "ai-ml"
   | "solana-ecosystem";
 
+export type LocaleCode = "en" | "pt" | "es";
+
+export type ChatMode = "normal" | "learn" | "bro";
+
 export interface GlossaryTerm {
   id: string;
   term: string;
