@@ -5,9 +5,9 @@ import ExploreClient from "@/components/ExploreClient";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Explore Relationships — Solana Glossary",
+  title: "Explore Relationships - Solana Glossary",
   description:
-    "Interactive visualization of relationships between 1001 Solana terms.",
+    "Interactive visualization of relationships between 1001 Solana glossary terms.",
 };
 
 export default function ExplorePage() {
@@ -17,18 +17,18 @@ export default function ExplorePage() {
     color: categoryMeta[slug].color,
   }));
 
-  const serializedTerms = allTerms.map((t) => ({
-    id: t.id,
-    term: t.term,
-    category: t.category,
-    related: t.related ?? [],
+  const serializedTerms = allTerms.map((term) => ({
+    id: term.id,
+    term: term.term,
+    category: term.category,
+    related: term.related ?? [],
   }));
 
   return (
     <Suspense
       fallback={
         <div className="flex h-[calc(100vh-140px)] items-center justify-center">
-          <p className="font-mono text-sm text-muted animate-pulse">
+          <p className="animate-pulse font-mono text-sm text-muted">
             Loading graph...
           </p>
         </div>

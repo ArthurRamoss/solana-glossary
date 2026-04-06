@@ -2,7 +2,7 @@
 
 An MCP (Model Context Protocol) server that exposes the **1001 Solana Glossary terms** to AI assistants via **Streamable HTTP transport** — the only MCP server in this bounty using HTTP instead of STDIO.
 
-**Live Endpoint:** _coming soon_
+**Live Endpoint:** `https://solana-glossary-production-5f40.up.railway.app/mcp`
 
 ## Why Streamable HTTP?
 
@@ -56,13 +56,13 @@ Add to your MCP configuration:
 }
 ```
 
-Or connect to the deployed endpoint:
+Or connect to the live deployed endpoint:
 
 ```json
 {
   "mcpServers": {
     "solana-glossary": {
-      "url": "https://your-deployment-url/mcp"
+      "url": "https://solana-glossary-production-5f40.up.railway.app/mcp"
     }
   }
 }

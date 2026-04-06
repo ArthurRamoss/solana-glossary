@@ -9,6 +9,16 @@ export default function HomePage() {
     color: categoryMeta[slug].color,
     count: getTermsByCategory(slug).length,
     description: categoryMeta[slug].description,
+    previewTerms: getTermsByCategory(slug)
+      .slice()
+      .sort((left, right) => {
+        const byRelated =
+          (right.related?.length ?? 0) - (left.related?.length ?? 0);
+        return byRelated !== 0
+          ? byRelated
+          : left.term.localeCompare(right.term);
+      })
+      .slice(0, 3),
   }));
 
   return <HomeClient terms={allTerms} categories={categories} />;

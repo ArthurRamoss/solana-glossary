@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useCallback, useRef, useMemo, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
+import { useChatContext } from "@/contexts/ChatContext";
+import { useLocale } from "@/contexts/LocaleContext";
+import type { Category } from "@/lib/types";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
   ssr: false,
@@ -11,12 +14,12 @@ const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
 interface TermNode {
   id: string;
   term: string;
-  category: string;
+  category: Category;
   related: string[];
 }
 
 interface CategoryInfo {
-  slug: string;
+  slug: Category;
   label: string;
   color: string;
 }
@@ -24,14 +27,22 @@ interface CategoryInfo {
 interface GraphNode {
   id: string;
   name: string;
-  category: string;
+  category: Category;
   color: string;
   val: number;
+  x?: number;
+  y?: number;
 }
 
 interface GraphLink {
   source: string;
   target: string;
+}
+
+interface TooltipState {
+  node: GraphNode;
+  left: number;
+  top: number;
 }
 
 export default function ExploreClient({
@@ -44,84 +55,191 @@ export default function ExploreClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const highlight = searchParams.get("highlight");
-  const [selectedCategory, setSelectedCategory] = useState<string | "all">(
-    "all"
+  const { copy, getCategoryMeta, localizeTerm } = useLocale();
+  const { openWithPrompt } = useChatContext();
+  const [selectedCategory, setSelectedCategory] = useState<Category | "all">(
+    "all",
   );
-  const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const [tooltipHovered, setTooltipHovered] = useState(false);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const focusPendingRef = useRef<string | null>(null);
+  const tooltipNodeRef = useRef<GraphNode | null>(null);
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const graphRef = useRef<any>(null);
-  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
   useEffect(() => {
-    setDimensions({
-      width: window.innerWidth,
-      height: window.innerHeight - 140,
-    });
-    const handleResize = () =>
+    const syncDimensions = () =>
       setDimensions({
         width: window.innerWidth,
         height: window.innerHeight - 140,
       });
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+
+    syncDimensions();
+    window.addEventListener("resize", syncDimensions);
+    return () => window.removeEventListener("resize", syncDimensions);
   }, []);
 
   const colorMap = useMemo(() => {
     const map: Record<string, string> = {};
-    for (const c of categories) map[c.slug] = c.color;
+    for (const category of categories) {
+      map[category.slug] = category.color;
+    }
     return map;
   }, [categories]);
+
+  const localizedTerms = useMemo(
+    () =>
+      terms.map((term) => {
+        const localized = localizeTerm({
+          ...term,
+          definition: "",
+        });
+
+        return {
+          ...term,
+          term: localized.term,
+        };
+      }),
+    [localizeTerm, terms],
+  );
 
   const graphData = useMemo(() => {
     const filtered =
       selectedCategory === "all"
-        ? terms.filter((t) => t.related.length > 0)
-        : terms.filter((t) => t.category === selectedCategory);
+        ? localizedTerms.filter((term) => term.related.length > 0)
+        : localizedTerms.filter((term) => term.category === selectedCategory);
 
-    const nodeIds = new Set(filtered.map((t) => t.id));
-    // Include related nodes that are in the filtered set
-    const nodes: GraphNode[] = filtered.map((t) => ({
-      id: t.id,
-      name: t.term,
-      category: t.category,
-      color: colorMap[t.category] || "#666",
-      val: t.related.length + 1,
+    const nodeIds = new Set(filtered.map((term) => term.id));
+
+    const nodes: GraphNode[] = filtered.map((term) => ({
+      id: term.id,
+      name: term.term,
+      category: term.category,
+      color: colorMap[term.category] || "#666666",
+      val: term.related.length + 1,
     }));
 
     const links: GraphLink[] = [];
-    for (const t of filtered) {
-      for (const r of t.related) {
-        if (nodeIds.has(r)) {
-          links.push({ source: t.id, target: r });
+    for (const term of filtered) {
+      for (const relatedId of term.related) {
+        if (nodeIds.has(relatedId)) {
+          links.push({ source: term.id, target: relatedId });
         }
       }
     }
 
     return { nodes, links };
-  }, [terms, selectedCategory, colorMap]);
+  }, [colorMap, localizedTerms, selectedCategory]);
 
-  const handleNodeClick = useCallback(
-    (node: GraphNode) => {
-      router.push(`/term/${node.id}`);
+  const scheduleHideTooltip = useCallback(() => {
+    hideTimeoutRef.current = setTimeout(() => {
+      if (!tooltipHovered) {
+        tooltipNodeRef.current = null;
+        setTooltip(null);
+      }
+    }, 200);
+  }, [tooltipHovered]);
+
+  const cancelHideTooltip = useCallback(() => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+  }, []);
+
+  const updateTooltipPosition = useCallback(
+    (node: GraphNode | null) => {
+      cancelHideTooltip();
+
+      if (!node) {
+        scheduleHideTooltip();
+        return;
+      }
+
+      tooltipNodeRef.current = node;
+
+      if (
+        typeof node.x !== "number" ||
+        typeof node.y !== "number" ||
+        !graphRef.current?.graph2ScreenCoords
+      ) {
+        scheduleHideTooltip();
+        return;
+      }
+
+      const screen = graphRef.current.graph2ScreenCoords(node.x, node.y);
+      const width = 248;
+      const height = 122;
+      const left = Math.min(
+        Math.max(screen.x + 16, 12),
+        window.innerWidth - width - 12,
+      );
+      const top = Math.min(
+        Math.max(screen.y - 18, 76),
+        window.innerHeight - height - 12,
+      );
+
+      setTooltip({ node, left, top });
     },
-    [router]
+    [cancelHideTooltip, scheduleHideTooltip],
   );
 
-  const nodeCanvasObject = useCallback(
-    (node: GraphNode & { x?: number; y?: number }, ctx: CanvasRenderingContext2D, globalScale: number) => {
-      if (!node.x || !node.y) return;
-      const label = node.name;
-      const fontSize = Math.max(10 / globalScale, 1.5);
-      const isHighlighted = node.id === highlight;
-      const isHovered = hoveredNode?.id === node.id;
-      const radius = Math.sqrt(node.val) * 2;
+  const focusNode = useCallback(
+    (targetId: string | null) => {
+      if (!targetId) return;
 
-      // Node circle
+      const node = graphData.nodes.find((item) => item.id === targetId);
+      if (!node) return;
+
+      if (typeof node.x !== "number" || typeof node.y !== "number") {
+        focusPendingRef.current = targetId;
+        return;
+      }
+
+      focusPendingRef.current = null;
+      graphRef.current?.centerAt(node.x, node.y, 500);
+      graphRef.current?.zoom(3.2, 500);
+    },
+    [graphData.nodes],
+  );
+
+  useEffect(() => {
+    if (!highlight) return;
+
+    const highlighted = terms.find((term) => term.id === highlight);
+    if (
+      highlighted &&
+      selectedCategory !== "all" &&
+      highlighted.category !== selectedCategory
+    ) {
+      setSelectedCategory("all");
+      return;
+    }
+
+    focusNode(highlight);
+  }, [focusNode, highlight, selectedCategory, terms]);
+
+  useEffect(() => {
+    if (tooltipNodeRef.current) {
+      updateTooltipPosition(tooltipNodeRef.current);
+    }
+  }, [dimensions, updateTooltipPosition]);
+
+  const nodeCanvasObject = useCallback(
+    (node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
+      if (typeof node.x !== "number" || typeof node.y !== "number") return;
+
+      const isHighlighted = node.id === highlight;
+      const isHovered = tooltip?.node.id === node.id;
+      const radius = Math.sqrt(node.val) * 2;
+      const fontSize = Math.max(10 / globalScale, 1.5);
+
       ctx.beginPath();
       ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI);
-      ctx.fillStyle = isHighlighted || isHovered
-        ? "#ffffff"
-        : node.color + "cc";
+      ctx.fillStyle =
+        isHighlighted || isHovered ? "#ffffff" : `${node.color}cc`;
       ctx.fill();
 
       if (isHighlighted || isHovered) {
@@ -130,72 +248,132 @@ export default function ExploreClient({
         ctx.stroke();
       }
 
-      // Label (only show when zoomed enough)
       if (globalScale > 1.5 || isHighlighted || isHovered) {
         ctx.font = `${fontSize}px JetBrains Mono, monospace`;
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
         ctx.fillStyle = isHighlighted || isHovered ? "#ffffff" : "#ffffff99";
-        ctx.fillText(label, node.x, node.y + radius + 2);
+        ctx.fillText(node.name, node.x, node.y + radius + 2);
       }
     },
-    [highlight, hoveredNode]
+    [highlight, tooltip],
   );
 
   return (
     <div className="relative h-full">
-      {/* Category filter bar */}
-      <div className="absolute top-4 left-4 z-20 flex flex-wrap gap-2 max-w-[calc(100%-2rem)]">
+      <div className="absolute left-4 top-4 z-20 flex max-w-[calc(100%-2rem)] flex-wrap gap-2">
         <button
+          type="button"
           onClick={() => setSelectedCategory("all")}
-          className={`rounded-full px-3 py-1 text-xs font-mono transition-all ${
+          className={`rounded-full px-3 py-1.5 text-xs font-mono transition-all ${
             selectedCategory === "all"
               ? "bg-white text-black"
               : "bg-white/10 text-white/70 hover:bg-white/20"
           }`}
         >
-          All ({terms.filter((t) => t.related.length > 0).length})
+          {copy.graph.all} (
+          {terms.filter((term) => term.related.length > 0).length})
         </button>
-        {categories.map((cat) => (
-          <button
-            key={cat.slug}
-            onClick={() => setSelectedCategory(cat.slug)}
-            className={`rounded-full px-3 py-1 text-xs font-mono transition-all ${
-              selectedCategory === cat.slug
-                ? "text-black"
-                : "text-white/70 hover:text-white"
-            }`}
-            style={{
-              background:
-                selectedCategory === cat.slug
-                  ? cat.color
-                  : `${cat.color}22`,
-            }}
-          >
-            {cat.label}
-          </button>
-        ))}
+        {categories.map((category) => {
+          const meta = getCategoryMeta(category.slug);
+
+          return (
+            <button
+              key={category.slug}
+              type="button"
+              onClick={() => setSelectedCategory(category.slug)}
+              className={`rounded-full px-3 py-1.5 text-xs font-mono transition-all ${
+                selectedCategory === category.slug
+                  ? "text-black"
+                  : "text-white/75 hover:text-white"
+              }`}
+              style={{
+                background:
+                  selectedCategory === category.slug
+                    ? meta.color
+                    : `${meta.color}22`,
+              }}
+            >
+              {meta.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Hovered node info */}
-      {hoveredNode && (
-        <div className="absolute bottom-4 left-4 z-20 gradient-border rounded-xl bg-[#111] p-4 max-w-sm">
-          <p className="font-mono text-sm font-semibold text-foreground">
-            {hoveredNode.name}
-          </p>
-          <p className="mt-1 text-xs text-muted">
-            {hoveredNode.category} — Click to view details
-          </p>
+      <div className="absolute right-4 top-4 z-20 rounded-2xl border border-white/8 bg-black/25 px-4 py-3 text-right text-xs text-muted backdrop-blur-md">
+        <p>
+          {graphData.nodes.length} {copy.graph.nodes}
+        </p>
+        <p>
+          {graphData.links.length} {copy.graph.edges}
+        </p>
+      </div>
+
+      {tooltip ? (
+        <div
+          className="fixed z-30"
+          style={{
+            left: tooltip.left,
+            top: tooltip.top,
+            width: 248,
+          }}
+          onMouseEnter={() => {
+            cancelHideTooltip();
+            setTooltipHovered(true);
+          }}
+          onMouseLeave={() => {
+            setTooltipHovered(false);
+            tooltipNodeRef.current = null;
+            setTooltip(null);
+          }}
+        >
+          <div className="rounded-[24px] border border-white/10 bg-[#101014]/95 p-4 shadow-[0_30px_90px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-mono text-sm font-semibold text-white">
+                  {tooltip.node.name}
+                </p>
+                <span
+                  className="mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium"
+                  style={{
+                    backgroundColor: `${getCategoryMeta(tooltip.node.category).color}22`,
+                    color: getCategoryMeta(tooltip.node.category).color,
+                  }}
+                >
+                  {getCategoryMeta(tooltip.node.category).label}
+                </span>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-muted">{copy.graph.clickToView}</p>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => router.push(`/term/${tooltip.node.id}`)}
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                {copy.chat.openTerm}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  openWithPrompt(
+                    `Explain ${tooltip.node.name} and how it connects to nearby Solana concepts.`,
+                    {
+                      pageType: "graph",
+                      focusId: tooltip.node.id,
+                      focusLabel: tooltip.node.name,
+                    },
+                  )
+                }
+                className="rounded-full border border-solana-purple/20 bg-solana-purple/10 px-3 py-1.5 text-xs text-white transition-colors hover:border-solana-green/30 hover:bg-solana-green/12"
+              >
+                {copy.graph.askAi}
+              </button>
+            </div>
+          </div>
         </div>
-      )}
+      ) : null}
 
-      {/* Stats */}
-      <div className="absolute top-4 right-4 z-20 text-right text-xs text-muted font-mono">
-        <p>{graphData.nodes.length} nodes</p>
-        <p>{graphData.links.length} edges</p>
-      </div>
-
-      {/* Graph */}
       <ForceGraph2D
         ref={graphRef}
         graphData={graphData}
@@ -203,22 +381,63 @@ export default function ExploreClient({
         height={dimensions.height}
         backgroundColor="#0a0a0a"
         nodeCanvasObject={nodeCanvasObject as never}
-        nodePointerAreaPaint={((node: never, color: string, ctx: CanvasRenderingContext2D) => {
-          const n = node as GraphNode & { x?: number; y?: number };
-          if (!n.x || !n.y) return;
-          const r = Math.sqrt(n.val) * 2 + 2;
-          ctx.beginPath();
-          ctx.arc(n.x, n.y, r, 0, 2 * Math.PI);
-          ctx.fillStyle = color;
-          ctx.fill();
-        }) as never}
+        nodePointerAreaPaint={
+          ((node: never, color: string, ctx: CanvasRenderingContext2D) => {
+            const graphNode = node as GraphNode;
+            if (
+              typeof graphNode.x !== "number" ||
+              typeof graphNode.y !== "number"
+            ) {
+              return;
+            }
+
+            const radius = Math.sqrt(graphNode.val) * 2 + 2;
+            ctx.beginPath();
+            ctx.arc(graphNode.x, graphNode.y, radius, 0, 2 * Math.PI);
+            ctx.fillStyle = color;
+            ctx.fill();
+          }) as never
+        }
         linkColor={() => "rgba(255,255,255,0.06)"}
         linkWidth={0.5}
-        onNodeClick={handleNodeClick as never}
-        onNodeHover={((node: never) => setHoveredNode(node as GraphNode | null)) as never}
         cooldownTicks={100}
         d3AlphaDecay={0.02}
         d3VelocityDecay={0.3}
+        onNodeClick={
+          ((node: never) => {
+            const graphNode = node as GraphNode;
+            router.push(`/term/${graphNode.id}`);
+          }) as never
+        }
+        onNodeHover={
+          ((node: never) =>
+            updateTooltipPosition((node as GraphNode | null) ?? null)) as never
+        }
+        onZoom={
+          (() => {
+            if (tooltipNodeRef.current) {
+              updateTooltipPosition(tooltipNodeRef.current);
+            }
+          }) as never
+        }
+        onZoomEnd={
+          (() => {
+            if (tooltipNodeRef.current) {
+              updateTooltipPosition(tooltipNodeRef.current);
+            }
+          }) as never
+        }
+        onEngineStop={
+          (() => {
+            if (focusPendingRef.current) {
+              focusNode(focusPendingRef.current);
+            }
+
+            if (tooltipNodeRef.current) {
+              updateTooltipPosition(tooltipNodeRef.current);
+            }
+          }) as never
+        }
       />
     </div>
   );

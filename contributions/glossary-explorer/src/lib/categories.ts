@@ -1,4 +1,4 @@
-import type { Category } from "./types";
+import type { Category, LocaleCode } from "./types";
 
 export interface CategoryMeta {
   label: string;
@@ -15,7 +15,8 @@ export const categoryMeta: Record<Category, CategoryMeta> = {
   "programming-model": {
     label: "Programming Model",
     color: "#3B82F6",
-    description: "Programs, accounts, instructions, and Solana's execution model.",
+    description:
+      "Programs, accounts, instructions, and Solana's execution model.",
   },
   "token-ecosystem": {
     label: "Token Ecosystem",
@@ -78,3 +79,146 @@ export const categoryMeta: Record<Category, CategoryMeta> = {
     description: "Projects, products, and culture across the Solana landscape.",
   },
 };
+
+const localizedCategoryMeta: Partial<
+  Record<
+    LocaleCode,
+    Record<Category, Pick<CategoryMeta, "label" | "description">>
+  >
+> = {
+  pt: {
+    "core-protocol": {
+      label: "Protocolo Base",
+      description: "Mecanismos fundamentais que movem a blockchain Solana.",
+    },
+    "programming-model": {
+      label: "Modelo de Programação",
+      description:
+        "Programs, accounts, instructions e o modelo de execução da Solana.",
+    },
+    "token-ecosystem": {
+      label: "Ecossistema de Tokens",
+      description: "SPL tokens, mintagem, transferências e padrões de tokens.",
+    },
+    defi: {
+      label: "DeFi",
+      description: "AMMs, lending, yield e protocolos de finanças onchain.",
+    },
+    "zk-compression": {
+      label: "Compressão ZK",
+      description: "Provas de conhecimento zero e compressão de estado.",
+    },
+    infrastructure: {
+      label: "Infraestrutura",
+      description: "Validators, RPCs, clusters e a infraestrutura da rede.",
+    },
+    security: {
+      label: "Segurança",
+      description: "Auditoria, vulnerabilidades e boas práticas de segurança.",
+    },
+    "dev-tools": {
+      label: "Ferramentas Dev",
+      description: "SDKs, CLIs, frameworks e tooling para builders.",
+    },
+    network: {
+      label: "Rede",
+      description: "Consensus, gossip, turbine e comunicação de rede.",
+    },
+    "blockchain-general": {
+      label: "Blockchain Geral",
+      description: "Conceitos gerais de blockchain além de Solana.",
+    },
+    web3: {
+      label: "Web3",
+      description: "Wallets, dapps, identidade e a web descentralizada.",
+    },
+    "programming-fundamentals": {
+      label: "Fundamentos de Programação",
+      description: "Conceitos-base de CS que sustentam blockchain.",
+    },
+    "ai-ml": {
+      label: "IA / ML",
+      description: "LLMs, machine learning e IA aplicada para builders.",
+    },
+    "solana-ecosystem": {
+      label: "Ecossistema Solana",
+      description: "Projetos, produtos e cultura em volta de Solana.",
+    },
+  },
+  es: {
+    "core-protocol": {
+      label: "Protocolo Base",
+      description:
+        "Mecanismos fundamentales que impulsan la blockchain Solana.",
+    },
+    "programming-model": {
+      label: "Modelo de Programación",
+      description:
+        "Programs, accounts, instructions y el modelo de ejecución de Solana.",
+    },
+    "token-ecosystem": {
+      label: "Ecosistema de Tokens",
+      description:
+        "SPL tokens, minting, transferencias y estándares de tokens.",
+    },
+    defi: {
+      label: "DeFi",
+      description: "AMMs, lending, yield y protocolos financieros onchain.",
+    },
+    "zk-compression": {
+      label: "Compresión ZK",
+      description: "Pruebas de conocimiento cero y compresión de estado.",
+    },
+    infrastructure: {
+      label: "Infraestructura",
+      description: "Validators, RPCs, clusters e infraestructura de red.",
+    },
+    security: {
+      label: "Seguridad",
+      description: "Auditoría, vulnerabilidades y buenas prácticas.",
+    },
+    "dev-tools": {
+      label: "Herramientas Dev",
+      description: "SDKs, CLIs, frameworks y tooling para builders.",
+    },
+    network: {
+      label: "Red",
+      description: "Consensus, gossip, turbine y comunicación de red.",
+    },
+    "blockchain-general": {
+      label: "Blockchain General",
+      description: "Conceptos generales de blockchain más allá de Solana.",
+    },
+    web3: {
+      label: "Web3",
+      description: "Wallets, dapps, identidad y la web descentralizada.",
+    },
+    "programming-fundamentals": {
+      label: "Fundamentos de Programación",
+      description: "Conceptos base de CS que sostienen blockchain.",
+    },
+    "ai-ml": {
+      label: "IA / ML",
+      description: "LLMs, machine learning e IA aplicada para builders.",
+    },
+    "solana-ecosystem": {
+      label: "Ecosistema Solana",
+      description: "Proyectos, productos y cultura alrededor de Solana.",
+    },
+  },
+};
+
+export function getCategoryMetaForLocale(
+  category: Category,
+  locale: LocaleCode,
+): CategoryMeta {
+  const base = categoryMeta[category];
+  const override = localizedCategoryMeta[locale]?.[category];
+
+  return override
+    ? {
+        ...base,
+        ...override,
+      }
+    : base;
+}
