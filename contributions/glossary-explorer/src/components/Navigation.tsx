@@ -12,6 +12,7 @@ export default function Navigation() {
   const links = [
     { href: "/", label: copy.nav.home },
     { href: "/explore", label: copy.nav.explore },
+    { href: "/learn", label: copy.nav.learn ?? "Learn" },
     { href: "/chat", label: copy.nav.askAi },
   ];
 
@@ -21,7 +22,7 @@ export default function Navigation() {
         <div className="flex min-h-16 flex-col gap-3 py-3 md:flex-row md:items-center md:justify-between md:py-0">
           <Link href="/" className="flex items-center gap-3">
             <span className="font-mono text-lg font-bold gradient-text">
-              solana.glossary
+              solexicon
             </span>
             <span className="hidden rounded-full border border-solana-purple/20 bg-solana-purple/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-solana-purple sm:inline-flex">
               MCP-native

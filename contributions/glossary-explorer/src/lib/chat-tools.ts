@@ -200,7 +200,7 @@ export async function glossaryStatsTool(): Promise<TextToolResult> {
   } catch {
     const stats = getGlossaryStats();
     const lines = [
-      "# Solana Glossary Statistics",
+      "# solexicon Statistics",
       "",
       `**Total terms:** ${stats.totalTerms}`,
       `**Categories:** ${stats.totalCategories}`,

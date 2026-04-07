@@ -1,13 +1,13 @@
 import { Suspense } from "react";
 import { allTerms, getCategories } from "@/lib/glossary";
 import { categoryMeta } from "@/lib/categories";
-import ExploreClient from "@/components/ExploreClient";
+import ExploreWrapper from "@/components/ExploreWrapper";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Explore Relationships - Solana Glossary",
+  title: "Explore Relationships — solexicon",
   description:
-    "Interactive visualization of relationships between 1001 Solana glossary terms.",
+    "Interactive 2D and 3D visualization of relationships between 1001 Solana glossary terms.",
 };
 
 export default function ExplorePage() {
@@ -34,7 +34,7 @@ export default function ExplorePage() {
         </div>
       }
     >
-      <ExploreClient terms={serializedTerms} categories={categories} />
+      <ExploreWrapper terms={serializedTerms} categories={categories} />
     </Suspense>
   );
 }

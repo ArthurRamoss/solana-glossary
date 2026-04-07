@@ -14,9 +14,9 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Solana Glossary - 1001 Terms Explored",
+  title: "solexicon — 1001 Terms, Infinite Knowledge",
   description:
-    "The definitive Solana glossary. Search, browse, and explore 1001 terms with interactive relationship graphs and multi-language support.",
+    "The definitive Solana knowledge base. 1001 terms, 3D knowledge graph, AI tutor, spaced repetition flashcards, and live network data. Learn, explore, master.",
   keywords: [
     "Solana",
     "glossary",
@@ -24,7 +24,13 @@ export const metadata: Metadata = {
     "crypto",
     "web3",
     "definitions",
+    "learning",
+    "flashcards",
+    "knowledge graph",
   ],
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000",
+  ),
 };
 
 export default function RootLayout({
@@ -37,7 +43,7 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${jetbrains.variable} h-full antialiased`}
     >
-      <body className="noise-bg min-h-full flex flex-col bg-background text-foreground">
+      <body className="noise-bg orb-bg min-h-full flex flex-col bg-background text-foreground">
         <AppShell>{children}</AppShell>
       </body>
     </html>

@@ -4,6 +4,7 @@ import Navigation from "./Navigation";
 import ChatWidget from "./ChatWidget";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { LocaleProvider, useLocale } from "@/contexts/LocaleContext";
+import { LearningProvider } from "@/contexts/LearningContext";
 
 function AppFooter() {
   const { copy } = useLocale();
@@ -18,7 +19,7 @@ function AppFooter() {
           rel="noopener noreferrer"
           className="text-solana-purple transition-colors hover:text-solana-green"
         >
-          @stbr/solana-glossary
+          @stbr/solexicon
         </a>{" "}
         · {copy.footer.suffix}
       </p>
@@ -40,7 +41,9 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
 export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <LocaleProvider>
-      <ShellFrame>{children}</ShellFrame>
+      <LearningProvider>
+        <ShellFrame>{children}</ShellFrame>
+      </LearningProvider>
     </LocaleProvider>
   );
 }
