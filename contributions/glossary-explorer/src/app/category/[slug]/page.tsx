@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   return {
-    title: `${meta.label} - Solana Glossary`,
+    title: `${meta.label} — solexicon`,
     description: meta.description,
   };
 }

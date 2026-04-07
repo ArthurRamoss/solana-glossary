@@ -47,7 +47,7 @@ function buildSystemPrompt({
     context?.focusLabel ? `Current focus label: ${context.focusLabel}` : null,
   ].filter(Boolean);
 
-  return `You are Ask Solana, an AI guide for the Solana Glossary.
+  return `You are Ask Solana, an AI guide for solexicon — the Solana knowledge base.
 
 You help users understand Solana concepts using glossary tools backed by an MCP server.
 Always use the available tools before answering factual questions about terms, categories, relationships, or glossary stats.

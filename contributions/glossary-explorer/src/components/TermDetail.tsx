@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useLocale } from "@/contexts/LocaleContext";
 import type { GlossaryTerm } from "@/lib/types";
+import CodeLab from "./CodeLab";
+import LiveDataBadge from "./LiveDataBadge";
+import ShareButton from "./ShareButton";
+import { hasCodeExamples } from "@/lib/code-examples";
 
 interface TermDetailProps {
   term: GlossaryTerm;
@@ -51,6 +55,27 @@ export default function TermDetail({ term, relatedTerms }: TermDetailProps) {
           {localizedTerm.definition}
         </p>
       </div>
+
+      {/* Share */}
+      <div className="mb-8">
+        <ShareButton
+          termId={term.id}
+          termName={localizedTerm.term}
+          category={term.category}
+        />
+      </div>
+
+      {/* Live Network Data */}
+      <div className="mb-8">
+        <LiveDataBadge termId={term.id} />
+      </div>
+
+      {/* Code Examples */}
+      {hasCodeExamples(term.id) && (
+        <div className="mb-8">
+          <CodeLab termId={term.id} />
+        </div>
+      )}
 
       {relatedTerms.length > 0 ? (
         <div>

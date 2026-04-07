@@ -20,8 +20,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   return {
-    title: `${term.term} - Solana Glossary`,
+    title: `${term.term} — solexicon`,
     description: term.definition.slice(0, 160),
+    openGraph: {
+      title: `${term.term} — solexicon`,
+      description: term.definition.slice(0, 160),
+      images: [`/api/og/${term.id}`],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${term.term} — solexicon`,
+      description: term.definition.slice(0, 160),
+      images: [`/api/og/${term.id}`],
+    },
   };
 }
 
